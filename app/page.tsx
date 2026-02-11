@@ -1,48 +1,38 @@
-import { supabase } from "../lib/supabase";
-
-export default async function Home() {
-    const { data, error } = await supabase
-        .from("images")
-        .select("*")
-        .limit(24);
-
-    if (error) {
-        return <div>Error: {error.message}</div>;
-    }
-
+export default function Home() {
     return (
-        <main style={{ padding: 24 }}>
-            <h1>Images</h1>
-
+        <main
+            style={{
+                minHeight: "100vh",
+                display: "grid",
+                placeItems: "center",
+                fontFamily: "system-ui",
+            }}
+        >
             <div
                 style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-                    gap: 16,
+                    border: "1px solid #eee",
+                    borderRadius: 16,
+                    padding: 24,
+                    width: 320,
+                    textAlign: "center",
                 }}
             >
-                {(data ?? []).map((img) => (
-                    <div
-                        key={img.id}
+                <h1>Humor Project</h1>
+                <p>Please login with Google</p>
+
+                <a href="/auth/login">
+                    <button
                         style={{
-                            border: "1px solid #ddd",
-                            borderRadius: 12,
+                            marginTop: 16,
+                            width: "100%",
                             padding: 12,
+                            borderRadius: 10,
+                            cursor: "pointer",
                         }}
                     >
-                        <img
-                            src={img.url}
-                            style={{
-                                width: "100%",
-                                borderRadius: 8,
-                            }}
-                        />
-
-                        <p style={{ fontSize: 12, marginTop: 8 }}>
-                            {img.image_description?.slice(0, 120)}...
-                        </p>
-                    </div>
-                ))}
+                        Login with Google
+                    </button>
+                </a>
             </div>
         </main>
     );
