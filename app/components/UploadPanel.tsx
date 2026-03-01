@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 type PipelineResult = {
     imageId: string;
     cdnUrl: string;
-    captions: any[]; // API returns an array of caption records
+    captions: any[];
 };
 
 export default function UploadPanel() {
@@ -21,9 +21,7 @@ export default function UploadPanel() {
     const [lastImageId, setLastImageId] = useState<string | null>(null);
     const [lastCdnUrl, setLastCdnUrl] = useState<string | null>(null);
 
-    // helper: try to extract caption strings from pipeline response
     function extractCaptionTexts(captions: any[]): string[] {
-        // Common possibilities: {text}, {caption}, {content}
         const out: string[] = [];
         for (const c of captions || []) {
             const t =
@@ -32,9 +30,9 @@ export default function UploadPanel() {
                 c?.caption ||
                 c?.content ||
                 c?.body;
+
             if (typeof t === "string" && t.trim()) out.push(t.trim());
         }
-        // Dedup while preserving order
         return Array.from(new Set(out));
     }
 
@@ -42,100 +40,101 @@ export default function UploadPanel() {
         if (!file) return;
 
         setBusy(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
 
-        const fd = new FormData();
-        fd.append("file", file);
+            const res = await fetch("/api/captions", {
+                method: "POST",
+                body: fd,
+            });
 
-        const res = await fetch("/api/captions", {
-            method: "POST",
-            body: fd, // multipart
-        });
+            const data = (await res.json().catch(() => ({}))) as Partial<PipelineResult>;
 
-        const data = (await res.json().catch(() => ({}))) as Partial<PipelineResult>;
-        setBusy(false);
+            if (!res.ok) {
+                // show detail if present
+                alert((data as any)?.error ?? "Upload failed");
+                console.log("upload error detail:", (data as any)?.detail);
+                return;
+            }
 
-        if (!res.ok) {
-            alert((data as any)?.error ?? "Upload failed");
-            return;
+            const texts = extractCaptionTexts(data.captions || []);
+            setGenerated(texts);
+            setLastImageId(data.imageId || null);
+            setLastCdnUrl(data.cdnUrl || null);
+
+            if (data.cdnUrl) setImageUrl(data.cdnUrl);
+            router.refresh();
+        } finally {
+            setBusy(false);
         }
-
-        const texts = extractCaptionTexts(data.captions || []);
-        setGenerated(texts);
-        setLastImageId(data.imageId || null);
-        setLastCdnUrl(data.cdnUrl || null);
-
-        // Optional: prefill the "Add New Meme" form
-        if (data.cdnUrl) setImageUrl(data.cdnUrl);
-
-        router.refresh();
     }
 
     async function addMemeManually() {
-        const url = imageUrl.trim();
         const cap = caption.trim();
-        if (!url || !cap) return;
+        if (!cap) return;
 
-        setBusy(true);
-
-        // This assumes you already have an /api/images or something.
-        // If you DON'T, skip inserting image and just post the caption for an existing imageId.
-        // For now: we only post caption if you already set lastImageId.
         if (!lastImageId) {
-            setBusy(false);
             alert("Upload an image first (so we have an imageId), then add captions.");
             return;
         }
 
-        const res = await fetch("/api/captions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageId: lastImageId, text: cap }),
-        });
+        setBusy(true);
+        try {
+            const res = await fetch("/api/captions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                // IMPORTANT: DB column is `content`, not `text`
+                body: JSON.stringify({ imageId: lastImageId, content: cap }),
+            });
 
-        setBusy(false);
-
-        if (!res.ok) {
             const j = await res.json().catch(() => ({}));
-            alert(j.error ?? "Failed to add meme caption");
-            return;
-        }
 
-        setCaption("");
-        router.refresh();
+            if (!res.ok) {
+                alert(j.error ?? "Failed to add caption");
+                console.log("db insert error detail:", j);
+                return;
+            }
+
+            setCaption("");
+            router.refresh();
+        } finally {
+            setBusy(false);
+        }
     }
 
     async function saveGeneratedToDb() {
         if (!lastImageId || generated.length === 0) return;
 
         setBusy(true);
+        try {
+            for (const captionText of generated) {
+                const res = await fetch("/api/captions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ imageId: lastImageId, content: captionText }),
+                });
 
-        // Save each generated caption using your existing JSON caption insert route
-        for (const text of generated) {
-            const res = await fetch("/api/captions", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ imageId: lastImageId, text }),
-            });
-
-            if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
-                setBusy(false);
-                alert(j.error ?? "Failed while saving generated captions");
-                return;
+                if (!res.ok) {
+                    alert(j.error ?? "Failed while saving generated captions");
+                    console.log("db insert error detail:", j);
+                    return;
+                }
             }
-        }
 
-        setBusy(false);
-        alert("Saved generated captions!");
-        router.refresh();
+            alert("Saved generated captions!");
+            router.refresh();
+        } finally {
+            setBusy(false);
+        }
     }
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-            {/* Upload card */}
             <div style={styles.card}>
                 <div style={styles.cardInner}>
-                    <div style={styles.title}>Upload Image → Auto-Generate Captions</div>
+                    <div style={styles.title}>Upload Image to Auto-Generate Captions</div>
                     <div style={styles.label}>CHOOSE IMAGE</div>
 
                     <div style={styles.row}>
@@ -160,7 +159,7 @@ export default function UploadPanel() {
                     {lastCdnUrl && (
                         <div style={{ marginTop: 16 }}>
                             <div style={styles.previewRow}>
-                                <img src={lastCdnUrl} style={styles.previewImg} />
+                                <img src={lastCdnUrl} alt="Uploaded preview" style={styles.previewImg} />
                                 <div style={{ flex: 1 }}>
                                     <div style={styles.small}>Uploaded URL</div>
                                     <div style={styles.mono}>{lastCdnUrl}</div>
@@ -211,7 +210,6 @@ export default function UploadPanel() {
                 </div>
             </div>
 
-            {/* Add new meme card */}
             <div style={styles.card}>
                 <div style={styles.cardInner}>
                     <div style={styles.title}>Add New Meme</div>
@@ -246,7 +244,8 @@ export default function UploadPanel() {
                     </button>
 
                     <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12 }}>
-                        Tip: Upload first so you have an <span style={styles.monoInline}>imageId</span>. Then “Add Meme” saves a caption
+                        Tip: Upload first so you have an{" "}
+                        <span style={styles.monoInline}>imageId</span>. Then “Add Meme” saves a caption
                         for that image.
                     </div>
                 </div>

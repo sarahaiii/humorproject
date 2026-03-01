@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 type CaptionRow = {
@@ -24,67 +24,100 @@ export default function RateCard({
 }) {
     const router = useRouter();
     const [busy, setBusy] = useState(false);
-    const [captionText, setCaptionText] = useState("");
+    const [isPending, startTransition] = useTransition();
 
-    const pick = useMemo(() => {
-        const pairs: Array<{ img: ImageRow; cap: CaptionRow }> = [];
+    // ✅ local copy so votes update instantly (optimistic)
+    const [localCaptions, setLocalCaptions] =
+        useState<Record<string, CaptionRow[]>>(captionsByImage);
 
+    useEffect(() => {
+        setLocalCaptions(captionsByImage);
+    }, [captionsByImage]);
+
+    const pairs = useMemo(() => {
+        const out: Array<{ img: ImageRow; cap: CaptionRow }> = [];
         for (const img of images) {
-            const caps = captionsByImage[img.id] ?? [];
-            for (const cap of caps) {
-                pairs.push({ img, cap });
-            }
+            const caps = localCaptions[img.id] ?? [];
+            for (const cap of caps) out.push({ img, cap });
         }
+        return out;
+    }, [images, localCaptions]);
 
+    const [pickIndex, setPickIndex] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (pairs.length === 0) {
+            setPickIndex(null);
+            return;
+        }
+        setPickIndex(Math.floor(Math.random() * pairs.length));
+    }, [pairs.length]);
+
+    const pick = pickIndex === null ? null : pairs[pickIndex];
+
+    function pickNextIndex() {
         if (pairs.length === 0) return null;
-        const idx = Math.floor(Math.random() * pairs.length);
-        return pairs[idx];
-    }, [images, captionsByImage]);
+        if (pairs.length === 1) return 0;
+
+        // avoid repeating the same one if possible
+        let next = Math.floor(Math.random() * pairs.length);
+        if (pickIndex !== null) {
+            while (next === pickIndex) next = Math.floor(Math.random() * pairs.length);
+        }
+        return next;
+    }
 
     async function vote(v: 1 | -1) {
-        if (!pick) return;
+        if (!pick || pickIndex === null) return;
 
         setBusy(true);
 
+        const imgId = pick.img.id;
+        const capId = pick.cap.id;
+
+        // ✅ optimistic score update
+        setLocalCaptions((prev) => {
+            const copy = { ...prev };
+            const list = (copy[imgId] ?? []).map((c) =>
+                c.id === capId ? { ...c, score: c.score + v } : c
+            );
+            copy[imgId] = list;
+            return copy;
+        });
+
+        // ✅ immediately go to next caption (no button)
+        const nextIdx = pickNextIndex();
+        setPickIndex(nextIdx);
+
+        // ✅ call API in background
         const res = await fetch("/api/vote", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ captionId: pick.cap.id, vote: v }),
+            body: JSON.stringify({ captionId: capId, vote: v }),
         });
 
-        setBusy(false);
-
         if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
-            alert(j.error ?? "Vote failed");
+            // rollback if vote fails
+            setLocalCaptions((prev) => {
+                const copy = { ...prev };
+                const list = (copy[imgId] ?? []).map((c) =>
+                    c.id === capId ? { ...c, score: c.score - v } : c
+                );
+                copy[imgId] = list;
+                return copy;
+            });
+
+            alert("Vote failed");
+            setBusy(false);
             return;
         }
 
-        router.refresh();
-    }
-
-    async function postCaption(imageId: string) {
-        const t = captionText.trim();
-        if (!t) return;
-
-        setBusy(true);
-
-        const res = await fetch("/api/captions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageId, text: t }),
+        // ✅ update server-rendered pages (scoreboard) WITHOUT blocking UI
+        startTransition(() => {
+            router.refresh();
         });
 
         setBusy(false);
-
-        if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
-            alert(j.error ?? "Failed to post caption");
-            return;
-        }
-
-        setCaptionText("");
-        router.refresh();
     }
 
     if (!pick) {
@@ -92,7 +125,7 @@ export default function RateCard({
             <div style={styles.card}>
                 <div style={{ padding: 30 }}>
                     <h2 style={{ margin: 0 }}>No captions yet</h2>
-                    <p style={{ marginTop: 10, opacity: 0.8 }}>
+                    <p style={{ marginTop: 10, opacity: 0.85, color: "var(--text-muted)" }}>
                         Add captions first, then you can rate them.
                     </p>
                 </div>
@@ -105,13 +138,19 @@ export default function RateCard({
     return (
         <div style={styles.card}>
             <div style={styles.imageWrapper}>
-                <img src={img.url} style={styles.image} />
+                <img
+                    src={img.url}
+                    alt={img.image_description ?? "Uploaded image"}
+                    style={styles.image}
+                />
             </div>
 
             <div style={styles.content}>
                 <div style={styles.topRow}>
                     <div style={styles.badge}>Rate</div>
-                    <div style={styles.score}>Score: {cap.score}</div>
+                    <div style={styles.score}>
+                        Score: {cap.score} {isPending ? "· updating…" : ""}
+                    </div>
                 </div>
 
                 <div style={styles.caption}>{cap.text}</div>
@@ -124,24 +163,6 @@ export default function RateCard({
                     <button disabled={busy} onClick={() => vote(-1)} style={styles.down}>
                         👎 Downvote
                     </button>
-
-                    <button disabled={busy} onClick={() => router.refresh()} style={styles.next}>
-                        Next
-                    </button>
-                </div>
-
-                <div style={styles.divider} />
-
-                <div style={styles.captionInputRow}>
-                    <input
-                        value={captionText}
-                        onChange={(e) => setCaptionText(e.target.value)}
-                        placeholder="Add a new caption..."
-                        style={styles.input}
-                    />
-                    <button disabled={busy} onClick={() => postCaption(img.id)} style={styles.post}>
-                        Post
-                    </button>
                 </div>
             </div>
         </div>
@@ -151,19 +172,22 @@ export default function RateCard({
 const styles: Record<string, any> = {
     card: {
         width: "min(900px, 95vw)",
-        borderRadius: 20,
+        borderRadius: 28,
         overflow: "hidden",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
-        background: "#111827",
-        color: "white",
+        background: "var(--card-light)",
+        border: "1px solid var(--card-border)",
+        boxShadow: "0 25px 70px rgba(0,0,0,0.45)",
+        color: "var(--text-main)",
     },
 
     imageWrapper: {
         width: "100%",
-        backgroundColor: "#0f172a",
+        background: "rgba(0,0,0,0.22)",
+        borderBottom: "1px solid var(--card-border)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        padding: 14,
     },
 
     image: {
@@ -171,6 +195,7 @@ const styles: Record<string, any> = {
         maxHeight: "520px",
         objectFit: "contain",
         display: "block",
+        borderRadius: 18,
     },
 
     content: {
@@ -188,87 +213,50 @@ const styles: Record<string, any> = {
         fontSize: 12,
         padding: "6px 12px",
         borderRadius: 999,
-        background: "#1f2937",
-        color: "#9ca3af",
+        background: "rgba(167,139,250,0.12)",
+        border: "1px solid rgba(167,139,250,0.30)",
+        color: "var(--text-main)",
+        fontWeight: 700,
+        letterSpacing: 0.2,
     },
 
     score: {
-        opacity: 0.8,
+        opacity: 0.9,
         fontSize: 14,
+        color: "var(--text-muted)",
+        fontWeight: 600,
     },
 
     caption: {
         fontSize: 24,
-        fontWeight: 600,
+        fontWeight: 700,
         marginBottom: 22,
+        lineHeight: 1.15,
     },
 
     actions: {
         display: "flex",
         gap: 12,
-        marginBottom: 18,
         flexWrap: "wrap",
     },
 
-    // ✅ pastel buttons (your preferred style)
     up: {
         padding: "10px 16px",
         borderRadius: 12,
-        border: "1px solid rgba(34,197,94,0.4)",
-        background: "rgba(34,197,94,0.15)",
-        color: "#22c55e",
-        fontWeight: 600,
+        border: "1px solid rgba(34,197,94,0.35)",
+        background: "rgba(34,197,94,0.12)",
+        color: "var(--text-main)",
+        fontWeight: 700,
         cursor: "pointer",
     },
 
     down: {
         padding: "10px 16px",
         borderRadius: 12,
-        border: "1px solid rgba(239,68,68,0.4)",
-        background: "rgba(239,68,68,0.15)",
-        color: "#ef4444",
-        fontWeight: 600,
-        cursor: "pointer",
-    },
-
-    next: {
-        padding: "10px 16px",
-        borderRadius: 12,
-        border: "1px solid rgba(59,130,246,0.4)",
-        background: "rgba(59,130,246,0.15)",
-        color: "#3b82f6",
-        fontWeight: 600,
-        cursor: "pointer",
-    },
-
-    divider: {
-        height: 1,
-        background: "#1f2937",
-        margin: "20px 0",
-    },
-
-    captionInputRow: {
-        display: "flex",
-        gap: 10,
-    },
-
-    input: {
-        flex: 1,
-        padding: 12,
-        borderRadius: 12,
-        border: "1px solid #374151",
-        background: "#1f2937",
-        color: "white",
-        outline: "none",
-    },
-
-    post: {
-        padding: "10px 16px",
-        borderRadius: 12,
-        border: "none",
-        background: "#2563eb",
-        color: "white",
-        fontWeight: 600,
+        border: "1px solid rgba(239,68,68,0.35)",
+        background: "rgba(239,68,68,0.12)",
+        color: "var(--text-main)",
+        fontWeight: 700,
         cursor: "pointer",
     },
 };
