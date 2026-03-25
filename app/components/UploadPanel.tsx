@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type PipelineResult = {
-    imageId: string;
-    cdnUrl: string;
-    captions: any[];
+    ok?: boolean;
+    imageId?: string;
+    cdnUrl?: string;
+    captions?: any[];
+    error?: string;
+    detail?: string;
 };
 
 export default function UploadPanel() {
@@ -23,6 +26,7 @@ export default function UploadPanel() {
 
     function extractCaptionTexts(captions: any[]): string[] {
         const out: string[] = [];
+
         for (const c of captions || []) {
             const t =
                 (typeof c === "string" ? c : null) ||
@@ -31,8 +35,11 @@ export default function UploadPanel() {
                 c?.content ||
                 c?.body;
 
-            if (typeof t === "string" && t.trim()) out.push(t.trim());
+            if (typeof t === "string" && t.trim()) {
+                out.push(t.trim());
+            }
         }
+
         return Array.from(new Set(out));
     }
 
@@ -40,6 +47,7 @@ export default function UploadPanel() {
         if (!file) return;
 
         setBusy(true);
+
         try {
             const fd = new FormData();
             fd.append("file", file);
@@ -49,12 +57,14 @@ export default function UploadPanel() {
                 body: fd,
             });
 
-            const data = (await res.json().catch(() => ({}))) as Partial<PipelineResult>;
+            const data = (await res.json().catch(() => ({}))) as PipelineResult;
 
             if (!res.ok) {
-                // show detail if present
-                alert((data as any)?.error ?? "Upload failed");
-                console.log("upload error detail:", (data as any)?.detail);
+                const message = data.detail
+                    ? `${data.error ?? "Upload failed"}\n\n${data.detail}`
+                    : (data.error ?? "Upload failed");
+
+                alert(message);
                 return;
             }
 
@@ -63,8 +73,13 @@ export default function UploadPanel() {
             setLastImageId(data.imageId || null);
             setLastCdnUrl(data.cdnUrl || null);
 
-            if (data.cdnUrl) setImageUrl(data.cdnUrl);
-            router.refresh();
+            if (data.cdnUrl) {
+                setImageUrl(data.cdnUrl);
+            }
+
+            if (texts.length === 0) {
+                alert("Upload succeeded, but no captions were returned.");
+            }
         } finally {
             setBusy(false);
         }
@@ -75,7 +90,7 @@ export default function UploadPanel() {
         if (!cap) return;
 
         if (!lastImageId) {
-            alert("Upload an image first (so we have an imageId), then add captions.");
+            alert("Upload an image first so the app has an imageId.");
             return;
         }
 
@@ -84,19 +99,21 @@ export default function UploadPanel() {
             const res = await fetch("/api/captions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                // IMPORTANT: DB column is `content`, not `text`
-                body: JSON.stringify({ imageId: lastImageId, content: cap }),
+                body: JSON.stringify({
+                    imageId: lastImageId,
+                    content: cap,
+                }),
             });
 
             const j = await res.json().catch(() => ({}));
 
             if (!res.ok) {
                 alert(j.error ?? "Failed to add caption");
-                console.log("db insert error detail:", j);
                 return;
             }
 
             setCaption("");
+            alert("Caption saved.");
             router.refresh();
         } finally {
             setBusy(false);
@@ -112,18 +129,21 @@ export default function UploadPanel() {
                 const res = await fetch("/api/captions", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ imageId: lastImageId, content: captionText }),
+                    body: JSON.stringify({
+                        imageId: lastImageId,
+                        content: captionText,
+                    }),
                 });
 
                 const j = await res.json().catch(() => ({}));
+
                 if (!res.ok) {
                     alert(j.error ?? "Failed while saving generated captions");
-                    console.log("db insert error detail:", j);
                     return;
                 }
             }
 
-            alert("Saved generated captions!");
+            alert("Saved generated captions.");
             router.refresh();
         } finally {
             setBusy(false);
@@ -159,11 +179,17 @@ export default function UploadPanel() {
                     {lastCdnUrl && (
                         <div style={{ marginTop: 16 }}>
                             <div style={styles.previewRow}>
-                                <img src={lastCdnUrl} alt="Uploaded preview" style={styles.previewImg} />
+                                <img
+                                    src={lastCdnUrl}
+                                    alt="Uploaded preview"
+                                    style={styles.previewImg}
+                                />
                                 <div style={{ flex: 1 }}>
                                     <div style={styles.small}>Uploaded URL</div>
                                     <div style={styles.mono}>{lastCdnUrl}</div>
+
                                     <div style={{ height: 10 }} />
+
                                     <div style={styles.small}>imageId</div>
                                     <div style={styles.mono}>{lastImageId}</div>
                                 </div>
@@ -183,7 +209,14 @@ export default function UploadPanel() {
                                 ))}
                             </div>
 
-                            <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: 12,
+                                    marginTop: 12,
+                                    flexWrap: "wrap",
+                                }}
+                            >
                                 <button
                                     disabled={busy || !lastImageId}
                                     onClick={saveGeneratedToDb}
@@ -194,6 +227,7 @@ export default function UploadPanel() {
                                 >
                                     Save generated captions to DB
                                 </button>
+
                                 <button
                                     disabled={busy}
                                     onClick={() => setGenerated([])}
@@ -245,7 +279,7 @@ export default function UploadPanel() {
 
                     <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12 }}>
                         Tip: Upload first so you have an{" "}
-                        <span style={styles.monoInline}>imageId</span>. Then “Add Meme” saves a caption
+                        <span style={styles.monoInline}>imageId</span>. Then add a caption
                         for that image.
                     </div>
                 </div>

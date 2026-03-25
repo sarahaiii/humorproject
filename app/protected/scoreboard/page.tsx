@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/server";
 import NavTabs from "@/app/components/NavTabs";
 
@@ -13,19 +14,25 @@ type RankedRow = {
     score: number;
 };
 
+type VoteRow = {
+    caption_id?: string;
+    vote_value?: number;
+    captions?: {
+        id?: string;
+        content?: string;
+        image_id?: string;
+        images?: {
+            id?: string;
+            url?: string;
+        };
+    };
+};
+
 export default async function ScoreboardPage() {
     const supabase = await createClient();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) redirect("/");
 
-    /**
-     * We pull votes joined to captions joined to images in ONE query
-     * and aggregate score client-side (no DB changes needed).
-     *
-     * Requires FK relationships:
-     * - caption_votes.caption_id -> captions.id
-     * - captions.image_id -> images.id
-     */
     const { data, error } = await supabase
         .from("caption_votes")
         .select(
@@ -43,7 +50,7 @@ export default async function ScoreboardPage() {
       )
     `
         )
-        .limit(5000); // keep it reasonable; adjust up if you have more votes
+        .limit(5000);
 
     if (error) {
         return (
@@ -62,20 +69,18 @@ export default async function ScoreboardPage() {
         );
     }
 
-    // Aggregate: score per captionId + keep caption text + image url
     const map = new Map<string, RankedRow>();
+    const rows: VoteRow[] = Array.isArray(data) ? (data as unknown as VoteRow[]) : [];
 
-    for (const row of data ?? []) {
-        const captionId = String((row as any)?.caption_id ?? "");
-        const voteValue = Number((row as any)?.vote_value ?? 0);
+    for (const row of rows) {
+        const captionId = String(row.caption_id ?? "");
+        const voteValue = Number(row.vote_value ?? 0);
 
-        const cap = (row as any)?.captions;
+        const cap = row.captions;
         const capId = String(cap?.id ?? "");
         const capContent = String(cap?.content ?? "");
         const imageId = String(cap?.image_id ?? "");
-
-        const img = cap?.images;
-        const imageUrl = String(img?.url ?? "");
+        const imageUrl = String(cap?.images?.url ?? "");
 
         if (!captionId || !capId || !imageId || !imageUrl || !capContent) continue;
 
@@ -149,7 +154,7 @@ function TopBar() {
     );
 }
 
-const styles: Record<string, any> = {
+const styles: Record<string, CSSProperties> = {
     page: {
         minHeight: "100vh",
         padding: 24,
@@ -170,7 +175,7 @@ const styles: Record<string, any> = {
         boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
         backdropFilter: "blur(10px)",
     },
-    brand: { fontWeight: 900, letterSpacing: 0.2 },
+    brand: { fontWeight: 900, letterSpacing: "0.2px" },
     link: {
         color: "var(--text-main)",
         textDecoration: "none",
@@ -195,13 +200,6 @@ const styles: Record<string, any> = {
         gap: 6,
     },
     title: { fontSize: 18, fontWeight: 900 },
-    subtle: { color: "var(--text-muted)", fontSize: 13 },
-    code: {
-        padding: "2px 6px",
-        borderRadius: 8,
-        background: "rgba(0,0,0,0.25)",
-        border: "1px solid rgba(51,65,85,0.7)",
-    },
 
     empty: { padding: 18, color: "var(--text-muted)" },
     error: { padding: 18, color: "#fecaca", fontWeight: 700 },

@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { CSSProperties } from "react";
 
 const tabs = [
     { label: "Rate", href: "/protected" },
@@ -16,7 +17,11 @@ export default function NavTabs() {
     return (
         <div style={styles.wrap}>
             {tabs.map((t) => {
-                const active = pathname === t.href;
+                const active =
+                    t.href === "/protected"
+                        ? pathname === "/protected"
+                        : pathname === t.href || pathname.startsWith(`${t.href}/`);
+
                 return (
                     <Link
                         key={t.href}
@@ -24,6 +29,7 @@ export default function NavTabs() {
                         style={{
                             ...styles.tab,
                             ...(active ? styles.tabActive : styles.tabInactive),
+                            ...(t === tabs[tabs.length - 1] ? styles.lastTab : {}),
                         }}
                     >
                         {t.label}
@@ -34,7 +40,15 @@ export default function NavTabs() {
     );
 }
 
-const styles: Record<string, any> = {
+type Styles = {
+    wrap: CSSProperties;
+    tab: CSSProperties;
+    tabActive: CSSProperties;
+    tabInactive: CSSProperties;
+    lastTab: CSSProperties;
+};
+
+const styles: Styles = {
     wrap: {
         display: "inline-flex",
         gap: 0,
@@ -51,6 +65,7 @@ const styles: Record<string, any> = {
         textDecoration: "none",
         transition: "all 120ms ease",
         borderRight: "1px solid rgba(51,65,85,0.6)",
+        cursor: "pointer",
     },
     tabActive: {
         background: "rgba(167,139,250,0.22)",
@@ -59,5 +74,8 @@ const styles: Record<string, any> = {
     tabInactive: {
         background: "transparent",
         color: "rgba(241,245,249,0.8)",
+    },
+    lastTab: {
+        borderRight: "none",
     },
 };

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/server";
 import RateCard from "@/app/components/RateCard";
 import NavTabs from "@/app/components/NavTabs";
@@ -25,7 +26,6 @@ export default async function ProtectedPage() {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) redirect("/");
 
-    // 1️⃣ Fetch everything directly
     const { data: images, error: imgErr } = await supabase
         .from("images")
         .select("id, url");
@@ -54,7 +54,6 @@ export default async function ProtectedPage() {
     const caps = (captions ?? []) as CaptionRow[];
     const voteRows = (votes ?? []) as VoteRow[];
 
-    // 2️⃣ Build score map
     const scoreByCaption: Record<string, number> = {};
 
     for (const v of voteRows) {
@@ -62,7 +61,6 @@ export default async function ProtectedPage() {
             (scoreByCaption[v.caption_id] ?? 0) + Number(v.vote_value);
     }
 
-    // 3️⃣ Group captions by image
     const captionsByImage: Record<
         string,
         { id: string; text: string; score: number }[]
@@ -100,7 +98,7 @@ export default async function ProtectedPage() {
     );
 }
 
-const pageStyles: Record<string, any> = {
+const pageStyles: Record<string, CSSProperties> = {
     page: {
         minHeight: "100vh",
         padding: 24,
