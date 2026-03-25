@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/server";
 import RateCard from "@/app/components/RateCard";
 import NavTabs from "@/app/components/NavTabs";
@@ -79,57 +78,10 @@ export default async function ProtectedPage() {
     }
 
     return (
-        <main style={pageStyles.page}>
-            <div style={pageStyles.topBar}>
-                <div style={pageStyles.brand}>Humor Project</div>
-                <a href="/auth/logout" style={pageStyles.link}>
-                    Logout
-                </a>
-            </div>
-
-            <div style={pageStyles.center}>
-                <div style={{ width: "min(900px, 95vw)" }}>
-                    <NavTabs />
-                    <div style={{ height: 14 }} />
-                    <RateCard images={imgs} captionsByImage={captionsByImage} />
-                </div>
-            </div>
-        </main>
+        <div style={{ width: "min(900px, 95vw)", margin: "0 auto" }}>
+            <NavTabs />
+            <div style={{ height: 14 }} />
+            <RateCard images={imgs} captionsByImage={captionsByImage} />
+        </div>
     );
 }
-
-const pageStyles: Record<string, CSSProperties> = {
-    page: {
-        minHeight: "100vh",
-        padding: 24,
-        fontFamily: "system-ui",
-        background: "var(--bg-dark)",
-        color: "var(--text-main)",
-    },
-    topBar: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        maxWidth: 980,
-        margin: "0 auto 24px",
-        padding: "14px 16px",
-        borderRadius: 18,
-        background: "rgba(30,41,59,0.65)",
-        border: "1px solid rgba(51,65,85,0.7)",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-        backdropFilter: "blur(10px)",
-    },
-    brand: {
-        fontWeight: 900,
-    },
-    link: {
-        color: "var(--text-main)",
-        textDecoration: "none",
-        fontWeight: 700,
-    },
-    center: {
-        display: "grid",
-        placeItems: "center",
-        paddingTop: 10,
-    },
-};

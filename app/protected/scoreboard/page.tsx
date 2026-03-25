@@ -55,7 +55,6 @@ export default async function ScoreboardPage() {
     if (error) {
         return (
             <main style={styles.page}>
-                <TopBar />
                 <div style={styles.center}>
                     <div style={styles.shell}>
                         <NavTabs />
@@ -102,8 +101,6 @@ export default async function ScoreboardPage() {
 
     return (
         <main style={styles.page}>
-            <TopBar />
-
             <div style={styles.center}>
                 <div style={styles.shell}>
                     <NavTabs />
@@ -143,44 +140,11 @@ export default async function ScoreboardPage() {
     );
 }
 
-function TopBar() {
-    return (
-        <div style={styles.topBar}>
-            <div style={styles.brand}>Humor Project</div>
-            <a href="/auth/logout" style={styles.link}>
-                Logout
-            </a>
-        </div>
-    );
-}
-
 const styles: Record<string, CSSProperties> = {
     page: {
         minHeight: "100vh",
-        padding: 24,
-        background: "var(--bg-dark)",
         color: "var(--text-main)",
         fontFamily: "system-ui",
-    },
-    topBar: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        maxWidth: 980,
-        margin: "0 auto 24px",
-        padding: "14px 16px",
-        borderRadius: 18,
-        background: "rgba(30,41,59,0.65)",
-        border: "1px solid rgba(51,65,85,0.7)",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-        backdropFilter: "blur(10px)",
-    },
-    brand: { fontWeight: 900, letterSpacing: "0.2px" },
-    link: {
-        color: "var(--text-main)",
-        textDecoration: "none",
-        fontWeight: 700,
-        opacity: 0.9,
     },
     center: { display: "grid", placeItems: "center" },
     shell: { width: "min(900px, 95vw)" },

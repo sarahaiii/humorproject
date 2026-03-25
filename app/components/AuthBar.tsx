@@ -19,33 +19,33 @@ export default function AuthBar() {
         return () => sub.subscription.unsubscribe();
     }, [supabase]);
 
-    const signInWithGoogle = async () => {
-        await supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
-            },
-        });
-    };
-
     const signOut = async () => {
         await supabase.auth.signOut();
-        setEmail(null);
+        window.location.href = "/";
     };
 
     return (
-        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
-            {!email ? (
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {email ? (
                 <>
-                    <span style={{ fontSize: 14 }}>Not logged in</span>
-                    <button onClick={signInWithGoogle}>Login with Google</button>
+                    <span style={{ fontSize: 14, opacity: 0.85 }}>{email}</span>
+                    <button
+                        onClick={signOut}
+                        style={{
+                            background: "transparent",
+                            border: "1px solid rgba(148,163,184,0.4)",
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            color: "white",
+                            fontWeight: 700,
+                        }}
+                    >
+                        Logout
+                    </button>
                 </>
             ) : (
-                <>
-                    <span style={{ fontSize: 14 }}>Logged in as: {email}</span>
-                    <a href="/protected">Protected</a>
-                    <button onClick={signOut}>Logout</button>
-                </>
+                <span style={{ fontSize: 14 }}>Not logged in</span>
             )}
         </div>
     );
