@@ -1,81 +1,110 @@
-// app/components/NavTabs.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 
-const tabs = [
-    { label: "Rate", href: "/protected" },
-    { label: "Scoreboard", href: "/protected/scoreboard" },
-    { label: "Upload", href: "/protected/upload" },
-];
-
 export default function NavTabs() {
     const pathname = usePathname();
 
-    return (
-        <div style={styles.wrap}>
-            {tabs.map((t) => {
-                const active =
-                    t.href === "/protected"
-                        ? pathname === "/protected"
-                        : pathname === t.href || pathname.startsWith(`${t.href}/`);
+    const tabs = [
+        {
+            name: "Rate",
+            icon: "🔥",
+            href: "/protected",
+            description: "Vote",
+        },
+        {
+            name: "Scoreboard",
+            icon: "🏆",
+            href: "/protected/scoreboard",
+            description: "Top captions",
+        },
+        {
+            name: "Upload",
+            icon: "📸",
+            href: "/protected/upload",
+            description: "Add image",
+        },
+    ];
 
-                return (
-                    <Link
-                        key={t.href}
-                        href={t.href}
-                        style={{
-                            ...styles.tab,
-                            ...(active ? styles.tabActive : styles.tabInactive),
-                            ...(t === tabs[tabs.length - 1] ? styles.lastTab : {}),
-                        }}
-                    >
-                        {t.label}
-                    </Link>
-                );
-            })}
+    return (
+        <div style={styles.outer}>
+            <div style={styles.grid}>
+                {tabs.map((t) => {
+                    const active =
+                        pathname === t.href ||
+                        pathname.startsWith(t.href + "/");
+
+                    return (
+                        <Link
+                            key={t.href}
+                            href={t.href}
+                            style={{
+                                ...styles.card,
+                                ...(active ? styles.active : styles.inactive),
+                            }}
+                        >
+                            <div style={styles.icon}>{t.icon}</div>
+                            <div style={styles.title}>{t.name}</div>
+                            <div style={styles.subtitle}>{t.description}</div>
+                        </Link>
+                    );
+                })}
+            </div>
         </div>
     );
 }
 
-type Styles = {
-    wrap: CSSProperties;
-    tab: CSSProperties;
-    tabActive: CSSProperties;
-    tabInactive: CSSProperties;
-    lastTab: CSSProperties;
-};
+const styles: Record<string, CSSProperties> = {
+    outer: {
+        width: "min(1180px, 94vw)",
+        margin: "2px auto 0 auto",
+    },
 
-const styles: Styles = {
-    wrap: {
-        display: "inline-flex",
-        gap: 0,
+    grid: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr",
+        gap: 12,
+    },
+
+    card: {
+        height: 78,
         borderRadius: 16,
-        overflow: "hidden",
-        border: "1px solid rgba(51,65,85,0.7)",
-        background: "rgba(15,23,42,0.55)",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-        backdropFilter: "blur(10px)",
-    },
-    tab: {
-        padding: "10px 16px",
-        fontWeight: 800,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
         textDecoration: "none",
-        transition: "all 120ms ease",
-        borderRight: "1px solid rgba(51,65,85,0.6)",
-        cursor: "pointer",
+        transition: "0.15s",
+        border: "1px solid rgba(255,255,255,0.12)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
     },
-    tabActive: {
-        background: "rgba(167,139,250,0.22)",
-        color: "var(--text-main)",
+
+    active: {
+        background: "rgba(99,102,241,0.34)",
+        boxShadow:
+            "0 0 0 1px rgba(99,102,241,0.30), 0 12px 28px rgba(0,0,0,0.22)",
     },
-    tabInactive: {
-        background: "transparent",
-        color: "rgba(241,245,249,0.8)",
+
+    inactive: {
+        background: "rgba(255,255,255,0.045)",
     },
-    lastTab: {
-        borderRight: "none",
+
+    icon: {
+        fontSize: 18,
+        marginBottom: 2,
+    },
+
+    title: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: "rgba(255,255,255,0.96)",
+    },
+
+    subtitle: {
+        fontSize: 10,
+        opacity: 0.72,
+        color: "rgba(255,255,255,0.78)",
     },
 };

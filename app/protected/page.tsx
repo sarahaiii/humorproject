@@ -1,23 +1,8 @@
+import type { CSSProperties } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RateCard from "@/app/components/RateCard";
 import NavTabs from "@/app/components/NavTabs";
-
-type ImageRow = {
-    id: string;
-    url: string;
-};
-
-type CaptionRow = {
-    id: string;
-    content: string;
-    image_id: string;
-};
-
-type VoteRow = {
-    caption_id: string;
-    vote_value: number;
-};
 
 export default async function ProtectedPage() {
     const supabase = await createClient();
@@ -49,13 +34,9 @@ export default async function ProtectedPage() {
         return <div>Error loading votes: {voteErr.message}</div>;
     }
 
-    const imgs = (images ?? []) as ImageRow[];
-    const caps = (captions ?? []) as CaptionRow[];
-    const voteRows = (votes ?? []) as VoteRow[];
-
     const scoreByCaption: Record<string, number> = {};
 
-    for (const v of voteRows) {
+    for (const v of votes ?? []) {
         scoreByCaption[v.caption_id] =
             (scoreByCaption[v.caption_id] ?? 0) + Number(v.vote_value);
     }
@@ -65,7 +46,7 @@ export default async function ProtectedPage() {
         { id: string; text: string; score: number }[]
     > = {};
 
-    for (const c of caps) {
+    for (const c of captions ?? []) {
         if (!captionsByImage[c.image_id]) {
             captionsByImage[c.image_id] = [];
         }
@@ -78,10 +59,56 @@ export default async function ProtectedPage() {
     }
 
     return (
-        <div style={{ width: "min(900px, 95vw)", margin: "0 auto" }}>
+        <div style={styles.page}>
             <NavTabs />
-            <div style={{ height: 14 }} />
-            <RateCard images={imgs} captionsByImage={captionsByImage} />
+            <div style={styles.gap} />
+            <div style={styles.cardArea}>
+                <RateCard
+                    images={(images ?? []) as { id: string; url: string }[]}
+                    captionsByImage={captionsByImage}
+                />
+            </div>
         </div>
     );
 }
+
+
+const styles: Record<string, CSSProperties> = {
+
+    page: {
+
+        width: "min(1180px, 94vw)",
+
+        margin: "0 auto",
+
+        padding: "2px 0 14px 0",   // tighter top spacing
+
+        minHeight: "100vh",
+
+        display: "flex",
+
+        flexDirection: "column",
+
+    },
+
+    gap: {
+
+        height: 2   // smaller gap between tabs and card
+
+    },
+
+    cardArea: {
+
+        flexGrow: 1,
+
+        display: "flex",
+
+        justifyContent: "center",
+
+        alignItems: "center",
+
+        overflow: "hidden",
+
+    },
+
+};
