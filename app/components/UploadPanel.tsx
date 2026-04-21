@@ -17,7 +17,6 @@ export default function UploadPanel() {
     const [file, setFile] = useState<File | null>(null);
     const [busy, setBusy] = useState(false);
 
-    const [imageUrl, setImageUrl] = useState("");
     const [caption, setCaption] = useState("");
 
     const [generated, setGenerated] = useState<string[]>([]);
@@ -69,16 +68,26 @@ export default function UploadPanel() {
             }
 
             const texts = extractCaptionTexts(data.captions || []);
+            const imgId = data.imageId || null;
             setGenerated(texts);
-            setLastImageId(data.imageId || null);
+            setLastImageId(imgId);
             setLastCdnUrl(data.cdnUrl || null);
-
-            if (data.cdnUrl) {
-                setImageUrl(data.cdnUrl);
-            }
 
             if (texts.length === 0) {
                 alert("Upload succeeded, but no captions were returned.");
+                return;
+            }
+
+            // Auto-save generated captions to DB
+            if (imgId) {
+                for (const captionText of texts) {
+                    await fetch("/api/captions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ imageId: imgId, content: captionText }),
+                    });
+                }
+                router.refresh();
             }
         } finally {
             setBusy(false);
@@ -120,114 +129,60 @@ export default function UploadPanel() {
         }
     }
 
-    async function saveGeneratedToDb() {
-        if (!lastImageId || generated.length === 0) return;
-
-        setBusy(true);
-        try {
-            for (const captionText of generated) {
-                const res = await fetch("/api/captions", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        imageId: lastImageId,
-                        content: captionText,
-                    }),
-                });
-
-                const j = await res.json().catch(() => ({}));
-
-                if (!res.ok) {
-                    alert(j.error ?? "Failed while saving generated captions");
-                    return;
-                }
-            }
-
-            alert("Saved generated captions.");
-            router.refresh();
-        } finally {
-            setBusy(false);
-        }
-    }
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
             <div style={styles.card}>
                 <div style={styles.cardInner}>
                     <div style={styles.title}>Upload Image to Auto-Generate Captions</div>
-                    <div style={styles.label}>CHOOSE IMAGE</div>
-
-                    <div style={styles.row}>
+                    <label style={styles.dropZone}>
+                        <div style={styles.dropIcon}>🖼️</div>
+                        <div style={styles.dropTitle}>
+                            {file ? file.name : "Choose an image to upload"}
+                        </div>
+                        <div style={styles.dropSub}>
+                            {file ? `${(file.size / 1024).toFixed(0)} KB` : "PNG, JPG, GIF, WEBP"}
+                        </div>
                         <input
                             type="file"
                             accept="image/*"
                             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                            style={styles.file}
+                            style={{ display: "none" }}
                         />
-                        <button
-                            disabled={busy || !file}
-                            onClick={uploadAndGenerate}
-                            style={{
-                                ...styles.primaryBtn,
-                                opacity: busy || !file ? 0.6 : 1,
-                            }}
-                        >
-                            {busy ? "Working..." : "Generate"}
-                        </button>
-                    </div>
+                    </label>
 
-                    {lastCdnUrl && (
-                        <div style={{ marginTop: 16 }}>
-                            <div style={styles.previewRow}>
-                                <img
-                                    src={lastCdnUrl}
-                                    alt="Uploaded preview"
-                                    style={styles.previewImg}
-                                />
-                                <div style={{ flex: 1 }}>
-                                    <div style={styles.small}>Uploaded URL</div>
-                                    <div style={styles.mono}>{lastCdnUrl}</div>
-
-                                    <div style={{ height: 10 }} />
-
-                                    <div style={styles.small}>imageId</div>
-                                    <div style={styles.mono}>{lastImageId}</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    <button
+                        disabled={busy || !file}
+                        onClick={uploadAndGenerate}
+                        style={{
+                            ...styles.primaryBtn,
+                            marginTop: 12,
+                            width: "100%",
+                            opacity: busy || !file ? 0.5 : 1,
+                        }}
+                    >
+                        {busy ? "Working..." : "Generate Captions"}
+                    </button>
 
                     {generated.length > 0 && (
                         <div style={{ marginTop: 16 }}>
                             <div style={styles.label}>GENERATED CAPTIONS</div>
-
                             <div style={styles.genBox}>
                                 {generated.map((t, i) => (
-                                    <div key={i} style={styles.genItem}>
-                                        {t}
-                                    </div>
+                                    <div key={i} style={styles.genItem}>{t}</div>
                                 ))}
                             </div>
-
-                            <div
-                                style={{
-                                    display: "flex",
-                                    gap: 12,
-                                    marginTop: 12,
-                                    flexWrap: "wrap",
-                                }}
-                            >
+                            <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
                                 <button
-                                    disabled={busy || !lastImageId}
-                                    onClick={saveGeneratedToDb}
+                                    disabled={busy || !file}
+                                    onClick={uploadAndGenerate}
                                     style={{
                                         ...styles.secondaryBtn,
-                                        opacity: busy || !lastImageId ? 0.6 : 1,
+                                        opacity: busy || !file ? 0.6 : 1,
                                     }}
                                 >
-                                    Save generated captions to DB
+                                    {busy ? "Working..." : "Regenerate"}
                                 </button>
-
                                 <button
                                     disabled={busy}
                                     onClick={() => setGenerated([])}
@@ -246,17 +201,7 @@ export default function UploadPanel() {
 
             <div style={styles.card}>
                 <div style={styles.cardInner}>
-                    <div style={styles.title}>Add New Meme</div>
-
-                    <div style={styles.label}>IMAGE URL</div>
-                    <input
-                        value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        style={styles.input}
-                    />
-
-                    <div style={{ height: 16 }} />
+                    <div style={styles.title}>Write Your Own Caption</div>
 
                     <div style={styles.label}>CAPTION</div>
                     <textarea
@@ -267,21 +212,21 @@ export default function UploadPanel() {
                     />
 
                     <button
-                        disabled={busy}
+                        disabled={busy || !lastImageId}
                         onClick={addMemeManually}
                         style={{
                             ...styles.bigBtn,
-                            opacity: busy ? 0.6 : 1,
+                            opacity: busy || !lastImageId ? 0.5 : 1,
                         }}
                     >
-                        Add Meme
+                        {busy ? "Saving..." : "Save Caption"}
                     </button>
 
-                    <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12 }}>
-                        Tip: Upload first so you have an{" "}
-                        <span style={styles.monoInline}>imageId</span>. Then add a caption
-                        for that image.
-                    </div>
+                    {!lastImageId && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: "#6a9cbf" }}>
+                            Upload an image above first to enable this.
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -291,48 +236,63 @@ export default function UploadPanel() {
 const styles: Record<string, any> = {
     card: {
         borderRadius: 22,
-        padding: 2,
-        background: "rgba(255,255,255,0.08)",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        background: "rgba(255,255,255,0.78)",
+        backdropFilter: "blur(28px) saturate(140%)",
+        WebkitBackdropFilter: "blur(28px) saturate(140%)",
+        border: "1px solid rgba(120,175,255,0.5)",
+        boxShadow: "0 20px 60px rgba(60,120,220,0.13), inset 0 1px 0 rgba(255,255,255,0.9)",
     },
     cardInner: {
         borderRadius: 20,
         padding: 24,
-        background: "#0b1220",
-        color: "white",
+        color: "#1a3a5c",
     },
     title: {
         fontSize: 22,
         fontWeight: 700,
         marginBottom: 18,
+        color: "#1a3a5c",
     },
     label: {
         fontSize: 12,
         letterSpacing: 1.4,
         fontWeight: 700,
-        opacity: 0.7,
+        color: "#6a9cbf",
         marginBottom: 8,
     },
-    row: {
+    dropZone: {
         display: "flex",
-        gap: 12,
+        flexDirection: "column",
         alignItems: "center",
-        flexWrap: "wrap",
+        justifyContent: "center",
+        gap: 6,
+        padding: "28px 20px",
+        borderRadius: 16,
+        border: "2px dashed rgba(96,165,250,0.6)",
+        background: "rgba(225,240,255,0.5)",
+        cursor: "pointer",
+        transition: "background 0.15s",
     },
-    file: {
-        flex: 1,
-        minWidth: 260,
-        padding: 10,
-        borderRadius: 12,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
-        color: "white",
+    dropIcon: {
+        fontSize: 36,
+        lineHeight: 1,
+    },
+    dropTitle: {
+        fontSize: 15,
+        fontWeight: 700,
+        color: "#1a3a5c",
+        textAlign: "center",
+        wordBreak: "break-all",
+    },
+    dropSub: {
+        fontSize: 12,
+        color: "#6a9cbf",
     },
     primaryBtn: {
         padding: "10px 16px",
         borderRadius: 12,
         border: "none",
-        background: "#7c3aed",
+        background: "#2563eb",
         color: "white",
         fontWeight: 700,
         cursor: "pointer",
@@ -340,18 +300,18 @@ const styles: Record<string, any> = {
     secondaryBtn: {
         padding: "10px 14px",
         borderRadius: 12,
-        border: "1px solid rgba(124,58,237,0.4)",
-        background: "rgba(124,58,237,0.15)",
-        color: "#c4b5fd",
+        border: "1px solid rgba(96,165,250,0.5)",
+        background: "rgba(96,165,250,0.15)",
+        color: "#1d4ed8",
         fontWeight: 700,
         cursor: "pointer",
     },
     ghostBtn: {
         padding: "10px 14px",
         borderRadius: 12,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
-        color: "white",
+        border: "1px solid rgba(120,175,255,0.4)",
+        background: "rgba(225,240,255,0.5)",
+        color: "#1a3a5c",
         fontWeight: 700,
         cursor: "pointer",
     },
@@ -359,9 +319,9 @@ const styles: Record<string, any> = {
         width: "100%",
         padding: 14,
         borderRadius: 14,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
-        color: "white",
+        border: "1px solid rgba(120,175,255,0.4)",
+        background: "rgba(225,240,255,0.6)",
+        color: "#1a3a5c",
         outline: "none",
     },
     textarea: {
@@ -369,9 +329,9 @@ const styles: Record<string, any> = {
         minHeight: 110,
         padding: 14,
         borderRadius: 14,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
-        color: "white",
+        border: "1px solid rgba(120,175,255,0.4)",
+        background: "rgba(225,240,255,0.6)",
+        color: "#1a3a5c",
         outline: "none",
         resize: "vertical",
     },
@@ -381,7 +341,7 @@ const styles: Record<string, any> = {
         padding: "14px 16px",
         borderRadius: 14,
         border: "none",
-        background: "#7c3aed",
+        background: "#2563eb",
         color: "white",
         fontWeight: 800,
         cursor: "pointer",
@@ -397,27 +357,28 @@ const styles: Record<string, any> = {
         width: 260,
         maxWidth: "100%",
         borderRadius: 14,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(120,175,255,0.4)",
+        background: "rgba(225,240,255,0.4)",
     },
     small: {
         fontSize: 12,
-        opacity: 0.7,
+        color: "#6a9cbf",
         marginBottom: 6,
     },
     mono: {
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         fontSize: 12,
-        opacity: 0.9,
+        color: "#1a3a5c",
         wordBreak: "break-all",
     },
     monoInline: {
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        color: "#1d4ed8",
     },
     genBox: {
         borderRadius: 14,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(120,175,255,0.35)",
+        background: "rgba(225,240,255,0.5)",
         padding: 12,
         display: "flex",
         flexDirection: "column",
@@ -426,7 +387,8 @@ const styles: Record<string, any> = {
     genItem: {
         padding: 12,
         borderRadius: 12,
-        background: "rgba(0,0,0,0.25)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(255,255,255,0.7)",
+        border: "1px solid rgba(120,175,255,0.3)",
+        color: "#1a3a5c",
     },
 };

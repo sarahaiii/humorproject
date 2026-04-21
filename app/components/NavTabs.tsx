@@ -8,42 +8,21 @@ export default function NavTabs() {
     const pathname = usePathname();
 
     const tabs = [
-        {
-            name: "Rate",
-            icon: "🔥",
-            href: "/protected",
-            description: "Vote",
-        },
-        {
-            name: "Scoreboard",
-            icon: "🏆",
-            href: "/protected/scoreboard",
-            description: "Top captions",
-        },
-        {
-            name: "Upload",
-            icon: "📸",
-            href: "/protected/upload",
-            description: "Add image",
-        },
+        { name: "Rate",       icon: "🔥", href: "/protected",            description: "Vote"         },
+        { name: "Scoreboard", icon: "🏆", href: "/protected/scoreboard", description: "Top captions" },
+        { name: "Upload",     icon: "📸", href: "/protected/upload",     description: "Add image"    },
     ];
 
     return (
         <div style={styles.outer}>
             <div style={styles.grid}>
                 {tabs.map((t) => {
-                    const active =
-                        pathname === t.href ||
-                        pathname.startsWith(t.href + "/");
-
+                    const active = pathname === t.href || pathname.startsWith(t.href + "/");
                     return (
                         <Link
                             key={t.href}
                             href={t.href}
-                            style={{
-                                ...styles.card,
-                                ...(active ? styles.active : styles.inactive),
-                            }}
+                            style={{ ...styles.tab, ...(active ? styles.active : styles.inactive) }}
                         >
                             <div style={styles.icon}>{t.icon}</div>
                             <div style={styles.title}>{t.name}</div>
@@ -58,18 +37,16 @@ export default function NavTabs() {
 
 const styles: Record<string, CSSProperties> = {
     outer: {
-        width: "min(1180px, 94vw)",
-        margin: "2px auto 0 auto",
+        width: "min(1100px, 94vw)",
+        margin: "0 auto 6px",
     },
-
     grid: {
         display: "grid",
         gridTemplateColumns: "1fr 1fr 1fr",
-        gap: 12,
+        gap: 10,
     },
-
-    card: {
-        height: 78,
+    tab: {
+        height: 70,
         borderRadius: 16,
         display: "flex",
         flexDirection: "column",
@@ -77,34 +54,28 @@ const styles: Record<string, CSSProperties> = {
         alignItems: "center",
         textDecoration: "none",
         transition: "0.15s",
-        border: "1px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
     },
-
     active: {
-        background: "rgba(99,102,241,0.34)",
-        boxShadow:
-            "0 0 0 1px rgba(99,102,241,0.30), 0 12px 28px rgba(0,0,0,0.22)",
+        background: "rgba(96,165,250,0.22)",
+        border: "1px solid rgba(96,165,250,0.55)",
+        boxShadow: "0 4px 16px rgba(59,130,246,0.15)",
     },
-
     inactive: {
-        background: "rgba(255,255,255,0.045)",
+        background: "rgba(255,255,255,0.50)",
+        border: "1px solid rgba(150,200,255,0.45)",
+        boxShadow: "0 2px 8px rgba(60,120,220,0.06)",
     },
-
     icon: {
         fontSize: 18,
         marginBottom: 2,
     },
-
     title: {
         fontSize: 13,
         fontWeight: 700,
-        color: "rgba(255,255,255,0.96)",
+        color: "#1a3a5c",
     },
-
     subtitle: {
         fontSize: 10,
-        opacity: 0.72,
-        color: "rgba(255,255,255,0.78)",
+        color: "#6a9cbf",
     },
 };

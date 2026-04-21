@@ -1,8 +1,6 @@
-import type { CSSProperties } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RateCard from "@/app/components/RateCard";
-import NavTabs from "@/app/components/NavTabs";
 
 export default async function ProtectedPage() {
     const supabase = await createClient();
@@ -35,22 +33,14 @@ export default async function ProtectedPage() {
     }
 
     const scoreByCaption: Record<string, number> = {};
-
     for (const v of votes ?? []) {
         scoreByCaption[v.caption_id] =
             (scoreByCaption[v.caption_id] ?? 0) + Number(v.vote_value);
     }
 
-    const captionsByImage: Record<
-        string,
-        { id: string; text: string; score: number }[]
-    > = {};
-
+    const captionsByImage: Record<string, { id: string; text: string; score: number }[]> = {};
     for (const c of captions ?? []) {
-        if (!captionsByImage[c.image_id]) {
-            captionsByImage[c.image_id] = [];
-        }
-
+        if (!captionsByImage[c.image_id]) captionsByImage[c.image_id] = [];
         captionsByImage[c.image_id].push({
             id: c.id,
             text: c.content,
@@ -59,56 +49,9 @@ export default async function ProtectedPage() {
     }
 
     return (
-        <div style={styles.page}>
-            <NavTabs />
-            <div style={styles.gap} />
-            <div style={styles.cardArea}>
-                <RateCard
-                    images={(images ?? []) as { id: string; url: string }[]}
-                    captionsByImage={captionsByImage}
-                />
-            </div>
-        </div>
+        <RateCard
+            images={(images ?? []) as { id: string; url: string }[]}
+            captionsByImage={captionsByImage}
+        />
     );
 }
-
-
-const styles: Record<string, CSSProperties> = {
-
-    page: {
-
-        width: "min(1180px, 94vw)",
-
-        margin: "0 auto",
-
-        padding: "2px 0 14px 0",   // tighter top spacing
-
-        minHeight: "100vh",
-
-        display: "flex",
-
-        flexDirection: "column",
-
-    },
-
-    gap: {
-
-        height: 2   // smaller gap between tabs and card
-
-    },
-
-    cardArea: {
-
-        flexGrow: 1,
-
-        display: "flex",
-
-        justifyContent: "center",
-
-        alignItems: "center",
-
-        overflow: "hidden",
-
-    },
-
-};

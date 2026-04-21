@@ -28,17 +28,18 @@ export default function AuthBar() {
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             {email ? (
                 <>
-                    <span style={{ fontSize: 14, opacity: 0.85 }}>{email}</span>
+                    <span style={{ fontSize: 14, color: "#1a3a5c", opacity: 0.85 }}>{email}</span>
                     <button
                         onClick={signOut}
                         style={{
-                            background: "transparent",
-                            border: "1px solid rgba(148,163,184,0.4)",
+                            background: "#2563eb",
+                            border: "1px solid #1d4ed8",
                             padding: "6px 12px",
                             borderRadius: 8,
                             cursor: "pointer",
                             color: "white",
                             fontWeight: 700,
+                            fontSize: 13,
                         }}
                     >
                         Logout

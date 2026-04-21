@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/server";
-import NavTabs from "@/app/components/NavTabs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -54,17 +53,13 @@ export default async function ScoreboardPage() {
 
     if (error) {
         return (
-            <main style={styles.page}>
-                <div style={styles.center}>
-                    <div style={styles.shell}>
-                        <NavTabs />
-                        <div style={{ height: 14 }} />
-                        <div style={styles.card}>
-                            <div style={styles.error}>Error loading scoreboard: {error.message}</div>
-                        </div>
+            <div style={styles.center}>
+                <div style={styles.shell}>
+                    <div style={styles.card}>
+                        <div style={styles.error}>Error loading scoreboard: {error.message}</div>
                     </div>
                 </div>
-            </main>
+            </div>
         );
     }
 
@@ -100,12 +95,8 @@ export default async function ScoreboardPage() {
     const ranked = Array.from(map.values()).sort((a, b) => b.score - a.score);
 
     return (
-        <main style={styles.page}>
-            <div style={styles.center}>
-                <div style={styles.shell}>
-                    <NavTabs />
-                    <div style={{ height: 14 }} />
-
+        <div style={styles.center}>
+            <div style={styles.shell}>
                     <div style={styles.card}>
                         <div style={styles.headerRow}>
                             <div style={styles.title}>Scoreboard</div>
@@ -132,41 +123,34 @@ export default async function ScoreboardPage() {
                             </div>
                         )}
                     </div>
-
-                    <div style={{ height: 10 }} />
-                </div>
             </div>
-        </main>
+        </div>
     );
 }
 
 const styles: Record<string, CSSProperties> = {
-    page: {
-        minHeight: "100vh",
-        color: "var(--text-main)",
-        fontFamily: "system-ui",
-    },
-    center: { display: "grid", placeItems: "center" },
+    center: { display: "grid", placeItems: "start center", paddingTop: 16 },
     shell: { width: "min(900px, 95vw)" },
 
     card: {
         borderRadius: 22,
-        background: "rgba(30,41,59,0.55)",
-        border: "1px solid rgba(51,65,85,0.75)",
-        boxShadow: "0 25px 70px rgba(0,0,0,0.45)",
+        background: "rgba(255,255,255,0.75)",
+        border: "1px solid rgba(120,175,255,0.45)",
+        boxShadow: "0 16px 50px rgba(60,120,220,0.11)",
         overflow: "hidden",
+        backdropFilter: "blur(20px)",
     },
     headerRow: {
         padding: 18,
-        borderBottom: "1px solid rgba(51,65,85,0.75)",
+        borderBottom: "1px solid rgba(120,175,255,0.3)",
         display: "flex",
         flexDirection: "column",
         gap: 6,
     },
-    title: { fontSize: 18, fontWeight: 900 },
+    title: { fontSize: 18, fontWeight: 900, color: "#1a3a5c" },
 
-    empty: { padding: 18, color: "var(--text-muted)" },
-    error: { padding: 18, color: "#fecaca", fontWeight: 700 },
+    empty: { padding: 18, color: "#6a9cbf" },
+    error: { padding: 18, color: "#f472b6", fontWeight: 700 },
 
     list: { display: "flex", flexDirection: "column" },
     row: {
@@ -175,7 +159,7 @@ const styles: Record<string, CSSProperties> = {
         gap: 14,
         alignItems: "center",
         padding: 14,
-        borderTop: "1px solid rgba(51,65,85,0.55)",
+        borderTop: "1px solid rgba(120,175,255,0.22)",
     },
     rank: {
         width: 38,
@@ -184,16 +168,17 @@ const styles: Record<string, CSSProperties> = {
         display: "grid",
         placeItems: "center",
         fontWeight: 900,
-        background: "rgba(167,139,250,0.12)",
-        border: "1px solid rgba(167,139,250,0.35)",
+        color: "#1d4ed8",
+        background: "rgba(96,165,250,0.15)",
+        border: "1px solid rgba(96,165,250,0.4)",
     },
     thumbWrap: {
         width: 96,
         height: 72,
         borderRadius: 14,
         overflow: "hidden",
-        border: "1px solid rgba(51,65,85,0.8)",
-        background: "rgba(0,0,0,0.25)",
+        border: "1px solid rgba(120,175,255,0.4)",
+        background: "rgba(225,240,255,0.5)",
         display: "grid",
         placeItems: "center",
     },
@@ -204,6 +189,6 @@ const styles: Record<string, CSSProperties> = {
         display: "block",
     },
     body: { display: "flex", flexDirection: "column", gap: 6 },
-    caption: { fontSize: 15, fontWeight: 800, lineHeight: 1.25 },
-    score: { fontSize: 13, color: "var(--text-muted)", fontWeight: 700 },
+    caption: { fontSize: 15, fontWeight: 800, lineHeight: 1.25, color: "#1a3a5c" },
+    score: { fontSize: 13, color: "#6a9cbf", fontWeight: 700 },
 };
