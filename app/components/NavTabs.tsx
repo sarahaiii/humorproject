@@ -26,7 +26,6 @@ export default function NavTabs() {
                         >
                             <div style={styles.icon}>{t.icon}</div>
                             <div style={styles.title}>{t.name}</div>
-                            <div style={styles.subtitle}>{t.description}</div>
                         </Link>
                     );
                 })}
@@ -70,7 +69,7 @@ const styles: Record<string, CSSProperties> = {
         marginBottom: 2,
     },
     title: {
-        fontSize: 13,
+        fontSize: 17,
         fontWeight: 700,
         color: "#1a3a5c",
     },
